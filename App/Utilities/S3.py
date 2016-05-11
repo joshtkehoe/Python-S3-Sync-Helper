@@ -2,18 +2,27 @@
 import os
 from boto.s3.connection import S3Connection
 
+
 class S3:
     access = None
     secret = None
     bucket = None
+    proxy = None
+    proxy_port = None
+    proxy_user = None
+    proxy_pass = None
 
     Conn = None
     Bucket = None
 
     # store url and token as variables in this class
-    def __init__(self, access=None, secret=None):
+    def __init__(self, access=None, secret=None, proxy=None, proxy_port=None, proxy_user=None, proxy_pass = None):
         self.access = access
         self.secret = secret
+        self.proxy = proxy
+        self.proxy_port = proxy_port
+        self.proxy_user = proxy_user
+        self.proxy_pass = proxy_pass
 
 
     def connect(self, _bucket=None):
@@ -21,7 +30,11 @@ class S3:
             return False
 
         self.bucket = _bucket
-        self.Conn = S3Connection(self.access, self.secret)
+        self.Conn = S3Connection(self.access, self.secret,
+                                 proxy=self.proxy,
+                                 proxy_port=self.proxy_port,
+                                 proxy_user=self.proxy_user,
+                                 proxy_pass=self.proxy_pass)
         self.Bucket = self.Conn.get_bucket(self.bucket)
         return True
 

@@ -140,6 +140,10 @@ basefolder = Config['s3_folder']
 workspace = Config['local_dir']
 basename = os.path.basename(workspace)
 threads = Config['upload_threads']
+proxy = Config['proxy']
+proxy_port = Config['proxy_port']
+proxy_user = Config['proxy_user']
+proxy_pass = Config['proxy_pass']
 
 # more variables please
 return_prints = []
@@ -171,7 +175,7 @@ if basefolder != None:
 # instantiate classes
 
 FS = App.FileStack()
-s3 = App.S3(access, secret)
+s3 = App.S3(access, secret, proxy=proxy, proxy_port=proxy_port, proxy_user=proxy_user, proxy_pass=proxy_pass)
 utility = App.Utility()
 
 # create log file
@@ -191,6 +195,10 @@ print ''
 print 'local folder: ' + workspace
 print '   s3 folder: ' + file_prefix
 print ''
+if proxy:
+    print 'Using proxy: ' + proxy + ':' + proxy_port
+if proxy_user:
+    print 'Proxy user: ' + proxy_user
 print '-----------------------------------------------------'
 print ''
 print 'Getting local file list...'
