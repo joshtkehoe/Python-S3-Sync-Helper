@@ -50,8 +50,12 @@ Config = {
 	's3_secret' : 'YOUR SECRET HERE',
 	's3_bucket' : 'YOUR BUCKET HERE',
 	's3_folder' : None, 								# default is: None
-	'local_dir' : 'C:/full/path/of/directory/to/upload' # use '/' in place of '\',
-	'upload_threads'  : 15
+	'local_dir' : 'C:/full/path/of/directory/to/upload', # use '/' in place of '\',
+	'upload_threads'  : 15,
+	'proxy'           : None,     # if behind a proxy, add it here (without http(s)://)
+	'proxy_port'      : None,     # proxy port
+	'proxy_user'      : None,     # if your proxy requires authentication, add it here
+	'proxy_pass'      : None
 }
 ```
 
@@ -62,8 +66,12 @@ Config = {
 	's3_secret' : 'YOUR SECRET HERE',
 	's3_bucket' : 'YOUR BUCKET HERE',
 	's3_folder' : None, 								# default is: None
-	'local_dir' : 'home/{username}/directory/to/upload' # use '/' in place of '\',
-	'upload_threads'  : 15
+	'local_dir' : 'home/{username}/directory/to/upload', # use '/' in place of '\',
+	'upload_threads'  : 15,
+	'proxy'           : None,     # if behind a proxy, add it here (without http(s)://)
+	'proxy_port'      : None,     # proxy port
+	'proxy_user'      : None,     # if your proxy requires authentication, add it here
+	'proxy_pass'      : None
 }
 
 ```
@@ -82,6 +90,7 @@ local_dir: The local directory you would like to upload files from
 
 upload_threads: The number of threads to use for simultaneous uploads. Don't use too many or your computer will crash. :(
 
+If you are behind a proxy, use proxy and proxy_port. If your proxy requires authentication, also use proxy_user and proxy_pass.
 
 ###Warnings & Notes
 
