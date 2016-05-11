@@ -5,3 +5,4 @@ upload/*
 _HOLD/*
 Logs/log-*
 data
+.idea/*
