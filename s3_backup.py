@@ -13,6 +13,8 @@ import os
 import sys
 from time import gmtime, strftime
 from multiprocessing.pool import ThreadPool
+from dateutil import parser
+from datetime import tzinfo
 
 sys.path.append(os.getcwd() + "\\App")
 
@@ -79,8 +81,11 @@ def global_upload(_file=None):
     s3_file = file_prefix + '/' + _file[len(workspace)+1:].replace('\\', '/')
     s3_file_show = '...' + s3_file[-45:].encode('utf-8')
 
-    local_filesize = FS.filesize(_file)
-    s3_filesize = s3.size(s3_file)
+    local_filesize, local_date_utc = FS.filesize_and_date(_file)
+    s3_filesize, s3_date = s3.size_and_date(s3_file)
+    s3_date_utc = parser.parse(s3_date)
+    s3_date_utc = s3_date_utc.replace(tzinfo=None)
+
 
     # if local filesize is more than 0
     if local_filesize:
@@ -98,7 +103,7 @@ def global_upload(_file=None):
                 print str(file_count).rjust(file_pad) + '/' + str(file_num) + ' | Upload: ' + s3_file_show
 
         # if local filesize is not the same as s3 filesize, upload file
-        elif local_filesize != s3_filesize:
+        elif local_filesize != s3_filesize or local_date_utc != s3_date_utc:
             msg = s3.upload(_file, s3_file)
             if msg != None:
                 log(msg)
@@ -200,6 +205,12 @@ if proxy:
 if proxy_user:
     print 'Proxy user: ' + proxy_user
 print '-----------------------------------------------------'
+print ''
+print 'Getting files from bucket...'
+print ''
+
+
+
 print ''
 print 'Getting local file list...'
 print ''

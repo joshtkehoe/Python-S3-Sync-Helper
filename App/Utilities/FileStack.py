@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import scandir
+import datetime
 
 
 class FileStack:
@@ -40,10 +41,9 @@ class FileStack:
     
     
     # get file size
-    def filesize(self, filepath):
-        return os.path.getsize(filepath)
-    
-    
+    def filesize_and_date(self, filepath):
+        return os.path.getsize(filepath), datetime.datetime.utcfromtimestamp(os.path.getmtime(filepath))
+
     
     # replaces text in file
     def file_find_replace(self, file_in, file_out, dicts):

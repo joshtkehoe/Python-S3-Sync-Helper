@@ -66,17 +66,18 @@ class S3:
         return None
 
 
-    def size(self, key=None):
+    def size_and_date(self, key=None):
         if self.Bucket == None or key == None:
             return False
 
         key = self.Bucket.lookup(key)
         
         try:
-            if key.size:
-                return key.size
+            if key.size and key.last_modified:
+                return key.size, key.last_modified
         except:
             return None
 
         return None
+
 
