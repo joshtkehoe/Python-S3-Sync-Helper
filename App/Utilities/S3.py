@@ -65,6 +65,10 @@ class S3:
 
         return None
 
+    def get_bucket_file_list(self):
+        if self.Conn == None or self.Bucket == False:
+            return False
+
 
     def size_and_date(self, key=None):
         if self.Bucket == None or key == None:

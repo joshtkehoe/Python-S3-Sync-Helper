@@ -6,6 +6,12 @@
 # Last Updated:			2014-04-09
 # Python Version:		2.7
 # Requirements:			Python 2.7, Scandir & Boto
+# Forked by:            Josh Kehoe
+# Fork Last Updated:    2016-05-12
+# Forked Modifications:
+#   1) Linux support
+#   2) Check last update date in addition to file size when synching
+#   3) Proxy configuration
 ```
 
 ###Installation
@@ -100,3 +106,7 @@ Use at your own risk. If a key exists and a file is uploaded that key will be ov
 Files that are in S3 that have been deleted locally will not be deleted. In this version S3 does not sync down first. This would be a good feature though.
 
 Might be nice to add a GUI too. One thing at a time.
+
+Comparing MD5 hashes would be a great addition, but it would require downloading each file from S3 first in order to get
+the MD5 hash. As a poor man's work around, we are comparing the last modified timestamp on the local file with to last
+modified timestamp of the file in S3 - which is when it was last uploaded - and replacing if it is newer.

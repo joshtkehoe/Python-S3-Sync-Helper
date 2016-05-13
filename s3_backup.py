@@ -79,7 +79,7 @@ def global_upload(_file=None):
     global fail_file
 
     s3_file = file_prefix + '/' + _file[len(workspace)+1:].replace('\\', '/')
-    s3_file_show = '...' + s3_file[-45:].encode('utf-8')
+    s3_file_show = '...' + s3_file[-50:].encode('utf-8')
 
     local_filesize, local_date_utc = FS.filesize_and_date(_file)
     s3_filesize, s3_date = s3.size_and_date(s3_file)
@@ -103,7 +103,7 @@ def global_upload(_file=None):
                 print str(file_count).rjust(file_pad) + '/' + str(file_num) + ' | Upload: ' + s3_file_show
 
         # if local filesize is not the same as s3 filesize, upload file
-        elif local_filesize != s3_filesize or local_date_utc != s3_date_utc:
+        elif local_filesize != s3_filesize or local_date_utc > s3_date_utc:
             msg = s3.upload(_file, s3_file)
             if msg != None:
                 log(msg)
@@ -208,7 +208,7 @@ print '-----------------------------------------------------'
 print ''
 print 'Getting files from bucket...'
 print ''
-
+s3_files = s3.get_bucket_file_list()
 
 
 print ''
