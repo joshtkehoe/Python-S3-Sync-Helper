@@ -83,8 +83,9 @@ def global_upload(_file=None):
 
     local_filesize, local_date_utc = FS.filesize_and_date(_file)
     s3_filesize, s3_date = s3.size_and_date(s3_file)
-    s3_date_utc = parser.parse(s3_date)
-    s3_date_utc = s3_date_utc.replace(tzinfo=None)
+    if s3_date != None:
+        s3_date_utc = parser.parse(s3_date)
+        s3_date_utc = s3_date_utc.replace(tzinfo=None)
 
 
     # if local filesize is more than 0
@@ -206,12 +207,6 @@ if proxy_user:
     print 'Proxy user: ' + proxy_user
 print '-----------------------------------------------------'
 print ''
-print 'Getting files from bucket...'
-print ''
-s3_files = s3.get_bucket_file_list()
-
-
-print ''
 print 'Getting local file list...'
 print ''
 
@@ -236,7 +231,10 @@ if files:
                 pool.map(global_upload, _files)
                 pool.close()
                 pool.join()
+            except TypeError as e:
+                print "Type error: {0}".format(e.message)
             except:
+                print "Unexpected error:", sys.exc_info()[0]
                 for f in _files:
                     log(f + ' | Pool map error')
                     fail_file+= 1

@@ -65,10 +65,6 @@ class S3:
 
         return None
 
-    def get_bucket_file_list(self):
-        if self.Conn == None or self.Bucket == False:
-            return False
-
 
     def size_and_date(self, key=None):
         if self.Bucket == None or key == None:
@@ -79,9 +75,11 @@ class S3:
         try:
             if key.size and key.last_modified:
                 return key.size, key.last_modified
+            elif key.size:
+                return key.size, None
         except:
-            return None
+            return None, None
 
-        return None
+        return None, None
 
 
