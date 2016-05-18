@@ -83,3 +83,12 @@ class S3:
         return None, None
 
 
+    def get_bucket_objects(self):
+        if self.Bucket == None:
+            return False
+
+        keys = []
+        for key in self.Bucket.list():
+            keys.append(key.name.encode('utf-8'))
+
+        return keys

@@ -14,7 +14,6 @@ import sys
 from time import gmtime, strftime
 from multiprocessing.pool import ThreadPool
 from dateutil import parser
-from datetime import tzinfo
 
 sys.path.append(os.getcwd() + "\\App")
 
@@ -76,7 +75,7 @@ def get_nested_list_size(_list):
 def global_upload(_file=None):
     global return_prints, file_prefix, workspace, FS, s3, upload_num, file_count
     global file_pad, file_num, updated_num, present_num, empty_num, uploaded_size
-    global fail_file
+    global fail_file, s3_list
 
     s3_file = file_prefix + '/' + _file[len(workspace)+1:].replace('\\', '/')
     s3_file_show = '...' + s3_file[-50:].encode('utf-8')
@@ -136,7 +135,7 @@ def global_upload(_file=None):
 # globals
 global return_prints, file_prefix, workspace, FS, s3, upload_num, file_count
 global file_pad, file_num, updated_num, present_num, empty_num, uploaded_size
-global fail_file, log_file, utility, data_file
+global fail_file, log_file, utility, data_file, s3_list
 
 # set variables from config file
 access = Config['s3_access']
@@ -207,12 +206,23 @@ if proxy_user:
     print 'Proxy user: ' + proxy_user
 print '-----------------------------------------------------'
 print ''
+print 'Getting S3 file list...'
+print ''
+if s3.connect(bucket):
+    s3_list = s3.get_bucket_objects()
+
+print '-----------------------------------------------------'
+print ''
 print 'Getting local file list...'
 print ''
 
 # get files in local dir (aka workspace)
 files = FS.folder_read(workspace, threads)
-
+print files
+for ob in s3_list:
+    rep = ob.replace(file_prefix, workspace, 1)
+    if rep not in files[0]:
+        print ob + ' NOT FOUND ON DISK'
 
 if files:
     file_num = get_nested_list_size(files)
