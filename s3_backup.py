@@ -13,6 +13,7 @@ import os
 import sys
 from time import gmtime, strftime
 from multiprocessing.pool import ThreadPool
+from dateutil import parser
 
 sys.path.append(os.getcwd() + "\\App")
 
@@ -70,17 +71,34 @@ def get_nested_list_size(_list):
     return _len
 
 
+def delete_from_s3(_file=None):
+    global del_file_count, fail_file
+    if _file:
+        msg = s3.delete(_file)
+        if msg:
+            log(msg)
+            fail_file+=1
+            print 'ERROR: ' + _file
+        else:
+            del_file_count+=1
+            print 'Deleted: ' + _file
+
+
 # upload function used for multiprocessing
 def global_upload(_file=None):
     global return_prints, file_prefix, workspace, FS, s3, upload_num, file_count
     global file_pad, file_num, updated_num, present_num, empty_num, uploaded_size
-    global fail_file
+    global fail_file, s3_list
 
     s3_file = file_prefix + '/' + _file[len(workspace)+1:].replace('\\', '/')
-    s3_file_show = '...' + s3_file[-45:].encode('utf-8')
+    s3_file_show = '...' + s3_file[-50:].encode('utf-8')
 
-    local_filesize = FS.filesize(_file)
-    s3_filesize = s3.size(s3_file)
+    local_filesize, local_date_utc = FS.filesize_and_date(_file)
+    s3_filesize, s3_date = s3.size_and_date(s3_file)
+    if s3_date != None:
+        s3_date_utc = parser.parse(s3_date)
+        s3_date_utc = s3_date_utc.replace(tzinfo=None)
+
 
     # if local filesize is more than 0
     if local_filesize:
@@ -98,7 +116,7 @@ def global_upload(_file=None):
                 print str(file_count).rjust(file_pad) + '/' + str(file_num) + ' | Upload: ' + s3_file_show
 
         # if local filesize is not the same as s3 filesize, upload file
-        elif local_filesize != s3_filesize:
+        elif local_filesize != s3_filesize or local_date_utc > s3_date_utc:
             msg = s3.upload(_file, s3_file)
             if msg != None:
                 log(msg)
@@ -124,13 +142,33 @@ def global_upload(_file=None):
         print str(file_count).rjust(file_pad) + '/' + str(file_num) + ' | Local size 0: ' + s3_file_show
 
 
+def _pool(func, f):
+    global fail_file
+    pool = ThreadPool(processes=threads)
+    try:
+        pool.map(func, f)
+        pool.close()
+        pool.join()
+    except TypeError as e:
+        print "Type error: {0}".format(e.message)
+    except:
+        print "Unexpected error:", sys.exc_info()[0]
+        for f in _files:
+            log(f + ' | Pool map error')
+            fail_file += 1
+            print f.encode('utf-8') + ' | ERROR: Pool map'
+        pool.close()
+        pool.join()
+
+    pool.terminate()
+
 
 
 # INITIALIZE VARIABLES
 # globals
 global return_prints, file_prefix, workspace, FS, s3, upload_num, file_count
 global file_pad, file_num, updated_num, present_num, empty_num, uploaded_size
-global fail_file, log_file, utility, data_file
+global fail_file, log_file, utility, data_file, s3_list, del_file_count
 
 # set variables from config file
 access = Config['s3_access']
@@ -158,6 +196,7 @@ empty_num = 0
 file_count = 0
 uploaded_size = 0
 fail_file = 0
+del_file_count = 0
 
 # fix the paths if the slash is heading in the wrong direction
 if basefolder:
@@ -200,13 +239,27 @@ if proxy:
 if proxy_user:
     print 'Proxy user: ' + proxy_user
 print '-----------------------------------------------------'
+print 'Getting S3 file list...'
+if s3.connect(bucket):
+    s3_list = s3.get_bucket_objects()
+print '-----------------------------------------------------'
 print ''
+print '-----------------------------------------------------'
 print 'Getting local file list...'
+print '-----------------------------------------------------'
 print ''
-
+print '-----------------------------------------------------'
+print 'Marking missing files on disk for cloud deletion'
+print '-----------------------------------------------------'
+print ''
 # get files in local dir (aka workspace)
 files = FS.folder_read(workspace, threads)
-
+s3_objects_to_delete = []
+for ob in s3_list:
+    rep = ob.replace(file_prefix, workspace, 1)
+    if rep not in files[0]:
+        print ob + ' NOT FOUND ON DISK'
+        s3_objects_to_delete.append(ob)
 
 if files:
     file_num = get_nested_list_size(files)
@@ -215,27 +268,14 @@ if files:
     print '-----------------------------------------------------'
     print 'Processing ' + str(file_num) + ' file(s)'
     print '-----------------------------------------------------'
-    print ''
 
     if s3.connect(bucket):
         for _files in files:
-            pool = ThreadPool(processes=threads)
-            
-            try:
-                pool.map(global_upload, _files)
-                pool.close()
-                pool.join()
-            except:
-                for f in _files:
-                    log(f + ' | Pool map error')
-                    fail_file+= 1
-                    print f.encode('utf-8') + ' | ERROR: Pool map'
-                pool.close()
-                pool.join()
+            _pool(global_upload, _files)
 
-            pool.terminate()
+        for _fd in s3_objects_to_delete:
+            delete_from_s3(_fd)
 
-            
     else:
         print 'S3 Connection Error: Check credentials, permissions and bucket name'
 
@@ -258,17 +298,19 @@ _empty_num = str(empty_num).rjust(file_pad)
 _fail_num = str(fail_file).rjust(file_pad)
 _total_num = str(upload_num + present_num + updated_num + empty_num + fail_file).rjust(file_pad)
 _upload_size = round((float(uploaded_size) / 1024) / 1024, 2)
+_del_num = str(del_file_count).rjust(file_pad)
 
 
 print ''
 print '-----------------------------------------------------'
 print 'Details - ' + _total_num + '/' + _found_num + ' Processed'
 print '-----------------------------------------------------'
-print _upload_num +  ' file(s) Uploaded       (New)'
-print _present_num + ' file(s) Present in S3  (Exists)'
-print _updated_num + ' file(s) Updated in S3  (Overwritten)'
-print _empty_num +   ' file(s) Skipped        (0 byte)'
-print _fail_num +    ' file(s) Failed         (Check Log File)'
+print _upload_num +  ' file(s) Uploaded        (New)'
+print _present_num + ' file(s) Present in S3   (Exists)'
+print _updated_num + ' file(s) Updated in S3   (Overwritten)'
+print _del_num +     ' file(s) Deleted from S3 (Not on Disk)'
+print _empty_num +   ' file(s) Skipped         (0 byte)'
+print _fail_num +    ' file(s) Failed          (Check Log File)'
 print ''
 print ' Started: ' + str(start_time)
 print 'Finished: ' + str(strftime(time_format, gmtime()))

@@ -66,17 +66,38 @@ class S3:
         return None
 
 
-    def size(self, key=None):
+    def delete(self, file):
+        try:
+            self.Bucket.delete_key(file)
+        except:
+            return file + ' | Could not delete key in bucket: ' + file
+
+        return None
+
+
+    def size_and_date(self, key=None):
         if self.Bucket == None or key == None:
             return False
 
         key = self.Bucket.lookup(key)
         
         try:
-            if key.size:
-                return key.size
+            if key.size and key.last_modified:
+                return key.size, key.last_modified
+            elif key.size:
+                return key.size, None
         except:
-            return None
+            return None, None
 
-        return None
+        return None, None
 
+
+    def get_bucket_objects(self):
+        if self.Bucket == None:
+            return False
+
+        keys = []
+        for key in self.Bucket.list():
+            keys.append(key.name.encode('utf-8'))
+
+        return keys
