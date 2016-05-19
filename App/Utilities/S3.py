@@ -66,6 +66,15 @@ class S3:
         return None
 
 
+    def delete(self, file):
+        try:
+            self.Bucket.delete_key(file)
+        except:
+            return file + ' | Could not delete key in bucket: ' + file
+
+        return None
+
+
     def size_and_date(self, key=None):
         if self.Bucket == None or key == None:
             return False
