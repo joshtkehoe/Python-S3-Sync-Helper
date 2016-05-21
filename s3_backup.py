@@ -14,6 +14,7 @@ import sys
 from time import gmtime, strftime
 from multiprocessing.pool import ThreadPool
 from dateutil import parser
+import argparse
 
 sys.path.append(os.getcwd() + "\\App")
 
@@ -21,6 +22,10 @@ import App
 from config import Config
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(prog='Python-S3-Sync-Helper')
+    parser.add_argument('-r', help='remove files from S3 if no longer on disk', action='store_true')
+    return parser.parse_args()
 
 # FUNCTIONS
 def create_data():
@@ -72,15 +77,16 @@ def get_nested_list_size(_list):
 
 
 def delete_from_s3(_file=None):
-    global del_file_count, fail_file
+    global del_file_count, fail_file, del_size
     if _file:
-        msg = s3.delete(_file)
+        msg, size = s3.delete(_file)
         if msg:
             log(msg)
             fail_file+=1
             print 'ERROR: ' + _file
         else:
             del_file_count+=1
+            del_size+=size
             print 'Deleted: ' + _file
 
 
@@ -168,7 +174,7 @@ def _pool(func, f):
 # globals
 global return_prints, file_prefix, workspace, FS, s3, upload_num, file_count
 global file_pad, file_num, updated_num, present_num, empty_num, uploaded_size
-global fail_file, log_file, utility, data_file, s3_list, del_file_count
+global fail_file, log_file, utility, data_file, s3_list, del_file_count, del_size
 
 # set variables from config file
 access = Config['s3_access']
@@ -197,6 +203,10 @@ file_count = 0
 uploaded_size = 0
 fail_file = 0
 del_file_count = 0
+del_size = 0
+
+parsed = parse_args()
+remove_from_s3 = parsed.r
 
 # fix the paths if the slash is heading in the wrong direction
 if basefolder:
@@ -238,28 +248,33 @@ if proxy:
     print 'Using proxy: ' + proxy + ':' + proxy_port
 if proxy_user:
     print 'Proxy user: ' + proxy_user
-print '-----------------------------------------------------'
-print 'Getting S3 file list...'
-if s3.connect(bucket):
-    s3_list = s3.get_bucket_objects()
-print '-----------------------------------------------------'
-print ''
+if remove_from_s3:
+    print '-----------------------------------------------------'
+    print 'Getting S3 file list...'
+    if s3.connect(bucket):
+        s3_list = s3.get_bucket_objects()
+    print '-----------------------------------------------------'
+    print ''
 print '-----------------------------------------------------'
 print 'Getting local file list...'
 print '-----------------------------------------------------'
 print ''
-print '-----------------------------------------------------'
-print 'Marking missing files on disk for cloud deletion'
-print '-----------------------------------------------------'
-print ''
+
 # get files in local dir (aka workspace)
 files = FS.folder_read(workspace, threads)
-s3_objects_to_delete = []
-for ob in s3_list:
-    rep = ob.replace(file_prefix, workspace, 1)
-    if rep not in files[0]:
-        print ob + ' NOT FOUND ON DISK'
-        s3_objects_to_delete.append(ob)
+if remove_from_s3:
+    print '-----------------------------------------------------'
+    print 'Marking missing files on disk for cloud deletion'
+    print '-----------------------------------------------------'
+    print ''
+
+
+    s3_objects_to_delete = []
+    for ob in s3_list:
+        rep = ob.replace(file_prefix, workspace, 1)
+        if rep not in files[0]:
+            print ob + ' NOT FOUND ON DISK'
+            s3_objects_to_delete.append(ob)
 
 if files:
     file_num = get_nested_list_size(files)
@@ -273,8 +288,9 @@ if files:
         for _files in files:
             _pool(global_upload, _files)
 
-        for _fd in s3_objects_to_delete:
-            delete_from_s3(_fd)
+        if remove_from_s3:
+            for _fd in s3_objects_to_delete:
+                delete_from_s3(_fd)
 
     else:
         print 'S3 Connection Error: Check credentials, permissions and bucket name'
@@ -298,6 +314,7 @@ _empty_num = str(empty_num).rjust(file_pad)
 _fail_num = str(fail_file).rjust(file_pad)
 _total_num = str(upload_num + present_num + updated_num + empty_num + fail_file).rjust(file_pad)
 _upload_size = round((float(uploaded_size) / 1024) / 1024, 2)
+_del_size = round((float(del_size) / 1024) / 1024, 2)
 _del_num = str(del_file_count).rjust(file_pad)
 
 
@@ -308,12 +325,15 @@ print '-----------------------------------------------------'
 print _upload_num +  ' file(s) Uploaded        (New)'
 print _present_num + ' file(s) Present in S3   (Exists)'
 print _updated_num + ' file(s) Updated in S3   (Overwritten)'
-print _del_num +     ' file(s) Deleted from S3 (Not on Disk)'
+if remove_from_s3:
+    print _del_num +     ' file(s) Deleted from S3 (Not on Disk)'
 print _empty_num +   ' file(s) Skipped         (0 byte)'
 print _fail_num +    ' file(s) Failed          (Check Log File)'
 print ''
-print ' Started: ' + str(start_time)
+print 'Started: ' + str(start_time)
 print 'Finished: ' + str(strftime(time_format, gmtime()))
 print 'Uploaded: ' + str(_upload_size) + 'MB'
+if remove_from_s3:
+    print 'Deleted: ' + str(_del_size) + 'MB'
 print '  Failed: ' + str(_upload_size) + 'MB'
 print '-----------------------------------------------------'

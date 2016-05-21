@@ -67,12 +67,14 @@ class S3:
 
 
     def delete(self, file):
+        key = self.Bucket.lookup(file)
+        size = key.size
         try:
             self.Bucket.delete_key(file)
         except:
-            return file + ' | Could not delete key in bucket: ' + file
+            return file + ' | Could not delete key in bucket: ' + file, None
 
-        return None
+        return None, key.size
 
 
     def size_and_date(self, key=None):
